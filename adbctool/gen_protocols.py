@@ -25,6 +25,8 @@ import yaml
 
 from pathlib import Path
 
+# TODO(All): merge control and report protocol generator
+
 
 def gen_report_header(car_type, protocol, output_dir):
     """
