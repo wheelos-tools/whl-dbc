@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2019 The Apollo Authors. All Rights Reserved.
+ * Copyright 2025 The WheelOS Team. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,13 @@ const int32_t %(classname)s::ID = 0x%(id_upper)s;
 %(classname)s::%(classname)s() { Reset(); }
 
 uint32_t %(classname)s::GetPeriod() const {
-  // TODO(All) :  modify every protocol's period manually
-  static const uint32_t PERIOD = 20 * 1000;
+  static const uint32_t PERIOD = %(period)s * 1000;
   return PERIOD;
+}
+
+void %(classname)s::Parse(const std::uint8_t* bytes, int32_t length,
+                         ChassisDetail* chassis) const {
+%(set_parse_var_to_protocol_list)s
 }
 
 void %(classname)s::UpdateData(uint8_t* data) {
@@ -44,6 +48,7 @@ void %(classname)s::Reset() {
 %(set_private_var_init_list)s
 }
 %(set_func_impl_list)s
+%(set_parse_func_impl_list)s
 }  // namespace %(car_type_lower)s
 }  // namespace canbus
 }  // namespace apollo
