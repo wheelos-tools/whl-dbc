@@ -35,27 +35,49 @@ def main(args=sys.argv):
         description="adbctool is a tool to generate vehicle protocol",
         prog="gen.py")
 
-    parser.add_argument(
-        "-f", "--dbc_file", action="store", type=str, required=True,
-        help="")
-    parser.add_argument(
-        "-t", "--car_type", action="store", type=str, required=True,
-        help="")
-    parser.add_argument(
-        "-b", "--black_list", action="store", type=list, required=False,
-        default=[], help="")
-    parser.add_argument(
-        "-s", "--sender_list", action="store", type=list, required=False,
-        default=[], help="")
-    parser.add_argument(
-        "--sender", action="store", type=str, required=False,
-        default="MAB", help="")
-    parser.add_argument(
-        "-o", "--output_dir", action="store", type=str, required=False,
-        default="output/", help="")
+    parser.add_argument("-f",
+                        "--dbc_file",
+                        action="store",
+                        type=str,
+                        required=True,
+                        help="")
+    parser.add_argument("-t",
+                        "--car_type",
+                        action="store",
+                        type=str,
+                        required=True,
+                        help="")
+    parser.add_argument("-b",
+                        "--black_list",
+                        action="store",
+                        type=list,
+                        required=False,
+                        default=[],
+                        help="")
+    parser.add_argument("-s",
+                        "--sender_list",
+                        action="store",
+                        type=list,
+                        required=False,
+                        default=[],
+                        help="")
+    parser.add_argument("--sender",
+                        action="store",
+                        type=str,
+                        required=False,
+                        default="MAB",
+                        help="")
+    parser.add_argument("-o",
+                        "--output_dir",
+                        action="store",
+                        type=str,
+                        required=False,
+                        default="output/",
+                        help="")
 
     args = parser.parse_args(args[1:])
 
+    # TODO(All): refact the parser or use the libraries such as `cantools`
     # extract dbc file meta to an internal config file
     protocol_conf_file = "dbc.yml"
     if not extract_dbc_meta(args.dbc_file, protocol_conf_file, args.car_type,

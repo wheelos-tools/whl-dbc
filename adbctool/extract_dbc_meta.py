@@ -23,7 +23,6 @@ import yaml
 import chardet
 import codecs
 
-
 MAX_CAN_ID = 4096000000  # include can extended ID
 STANDARD_CAN_ID = 2048
 
@@ -64,7 +63,9 @@ def extract_var_info(items):
     return car_var
 
 
-def detect_file_encoding(file_path, default_encoding='utf-8', confidence_threshold=0.5):
+def detect_file_encoding(file_path,
+                         default_encoding='utf-8',
+                         confidence_threshold=0.5):
     """Detect file encoding
 
     Args:
@@ -116,10 +117,23 @@ def parse_enum_values(items, protocols):
             var["type"] = "enum"
             var["enum"] = {}
             for idx in range(3, len(items) - 1, 2):
-                enumtype = re.sub(
-                    '\W+', ' ', items[idx + 1]).strip().replace(" ", "_").upper()
+                enumtype = re.sub('\W+', ' ',
+                                  items[idx + 1]).strip().replace(" ",
+                                                                  "_").upper()
                 enumtype = f"{items[2].upper()}_{enumtype}"
                 var["enum"][int(items[idx])] = enumtype
+
+
+def parse_message_cycle_time(items, protocols):
+    """Parse message cycle time from the DBC file.
+    """
+    protocol_id = '%x' % int(items[3])
+    if int(items[3]) > MAX_CAN_ID:
+        return
+    if int(items[3]) > STANDARD_CAN_ID:
+        protocol_id = gen_can_id_extended(protocol_id)
+    period = items[4].rstrip(' ;')
+    protocols[protocol_id]['period'] = period
 
 
 def adjust_reserved_keywords(protocols):
@@ -137,13 +151,14 @@ def log_summary(car_type, out_file, protocols):
     """
     Log a summary of the parsed protocols.
     """
-    control_protocol_num = sum(
-        1 for p in protocols.values() if p["protocol_type"] == "control")
-    report_protocol_num = sum(
-        1 for p in protocols.values() if p["protocol_type"] == "report")
+    control_protocol_num = sum(1 for p in protocols.values()
+                               if p["protocol_type"] == "control")
+    report_protocol_num = sum(1 for p in protocols.values()
+                              if p["protocol_type"] == "report")
 
     print(
-        f"Extracted car_type: {car_type.upper()}'s protocol meta info to file: {out_file}")
+        f"Extracted car_type: {car_type.upper()}'s protocol meta info to file: {out_file}"
+    )
     print(f"Total parsed protocols: {len(protocols)}")
     print(f"Control protocols: {control_protocol_num}")
     print(f"Report protocols: {report_protocol_num}")
@@ -186,7 +201,8 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                     if protocol["id"] in black_list:
                         continue
                     protocol["protocol_type"] = "report"
-                    if protocol["id"] in sender_list or protocol["sender"] == sender:
+                    if protocol["id"] in sender_list or protocol[
+                            "sender"] == sender:
                         protocol["protocol_type"] = "control"
                     protocol["vars"] = []
                     in_protocol = True
@@ -199,8 +215,9 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                                 protocol["vars"].append(var_info)
                     else:
                         in_protocol = False
-                        if len(protocol) != 0 and len(protocol["vars"]) != 0 and len(
-                                protocol["vars"]) < 65:
+                        if len(protocol) != 0 and len(
+                                protocol["vars"]) != 0 and len(
+                                    protocol["vars"]) < 65:
                             protocols[protocol["id"]] = protocol
                             # print protocol
                             protocol = {}
@@ -211,6 +228,10 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                 if len(items) > 2 and items[0] == "VAL_":
                     parse_enum_values(items, protocols)
 
+                if len(items) == 5 and items[0] == 'BA_' and items[
+                        1] == 'GenMsgCycleTime' and items[2] == 'BO_':
+                    parse_message_cycle_time(items, protocols)
+
         except (ValueError, UnicodeDecodeError) as e:
             print(f"Error occurred on line {line_num}: {e}")
             return False
@@ -218,10 +239,7 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
         adjust_reserved_keywords(protocols)
 
         # save protocols
-        config = {
-            "car_type": car_type,
-            "protocols": protocols
-        }
+        config = {"car_type": car_type, "protocols": protocols}
         with open(out_file, 'w') as fp:
             yaml.dump(config, fp)
 

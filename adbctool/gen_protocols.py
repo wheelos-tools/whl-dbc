@@ -25,6 +25,8 @@ import yaml
 
 from pathlib import Path
 
+# TODO(All): merge control and report protocol generator
+
 
 def gen_report_header(car_type, protocol, output_dir):
     """
@@ -96,8 +98,8 @@ def gen_report_cpp(car_type, protocol, output_dir):
             func_impl_list.append(impl)
             proto_set_fmt = "  chassis->mutable_%s()->mutable_%s()->set_%s(%s(bytes, length));"
             func_name = var["name"]
-            proto_set = proto_set_fmt % (car_type, protocol["name"], var["name"],
-                                         func_name)
+            proto_set = proto_set_fmt % (car_type, protocol["name"],
+                                         var["name"], func_name)
             set_var_to_protocol_list.append(proto_set)
         fmt_val["set_var_to_protocol_list"] = "\n".join(
             set_var_to_protocol_list)
@@ -118,8 +120,8 @@ def gen_report_value_offset_precision(var, protocol):
 
     returntype = var["type"]
     if var["type"] == "enum":
-        returntype = protocol["name"].capitalize() + "::" + var["name"].capitalize(
-        ) + "Type"
+        returntype = protocol["name"].capitalize(
+        ) + "::" + var["name"].capitalize() + "Type"
     impl = impl + "\n  " + returntype + " ret = "
 
     if var["type"] == "enum":
@@ -174,9 +176,12 @@ def gen_control_header(car_type, protocol, output_dir):
         declare_public_func_list = []
         declare_private_func_list = []
         declare_private_var_list = []
+        declare_private_parse_func_list = []
 
         fmtpub = "\n  // config detail: %s\n  %s* set_%s(%s %s);"
         fmtpri = "\n  // config detail: %s\n  void set_p_%s(uint8_t* data, %s %s);"
+        fmtparse = """
+  %s %s(const std::uint8_t* bytes, const int32_t length) const;"""
         for var in protocol["vars"]:
             returntype = var["type"]
             if var["type"] == "enum":
@@ -191,9 +196,13 @@ def gen_control_header(car_type, protocol, output_dir):
 
             private_var = "  %s %s_;" % (returntype, var["name"].lower())
 
+            private_parse_declare = fmtparse % (returntype,
+                                                var["name"].lower())
+
             declare_private_var_list.append(private_var)
             declare_public_func_list.append(public_func_declare)
             declare_private_func_list.append(private_func_declare)
+            declare_private_parse_func_list.append(private_parse_declare)
 
         fmt_val["declare_public_func_list"] = "\n".join(
             declare_public_func_list)
@@ -201,6 +210,8 @@ def gen_control_header(car_type, protocol, output_dir):
             declare_private_func_list)
         fmt_val["declare_private_var_list"] = "\n".join(
             declare_private_var_list)
+        fmt_val["declare_private_parse_func_list"] = "\n".join(
+            declare_private_parse_func_list)
         h_fp.write(FMT % fmt_val)
 
 
@@ -324,8 +335,8 @@ def gen_control_value_func_impl(classname, var, protocol):
     impl = ""
     if var["len"] > 32:
         print("This generator not support big than four bytes var." +
-              "protocol classname: %s, var_name:%s " % (
-                  class_name, var["name"]))
+              "protocol classname: %s, var_name:%s " %
+              (class_name, var["name"]))
         return impl
 
     fmt = """
@@ -343,8 +354,8 @@ void %(classname)s::set_p_%(var_name)s(uint8_t* data,
     fmt_val["var_name"] = var["name"].lower()
     returntype = var["type"]
     if var["type"] == "enum":
-        returntype = protocol["name"].capitalize() + "::" + var["name"].capitalize(
-        ) + "Type"
+        returntype = protocol["name"].capitalize(
+        ) + "::" + var["name"].capitalize() + "Type"
     fmt_val["var_type"] = returntype
     fmt_val["config"] = str(var)
     impl = impl + fmt % fmt_val
@@ -383,6 +394,8 @@ def gen_control_cpp(car_type, protocol, output_dir):
         set_private_var_list = []
         set_private_var_init_list = []
         set_func_impl_list = []
+        set_parse_var_to_protocol_list = []
+        set_parse_func_impl_list = []
         for var in protocol["vars"]:
             func_impl = gen_control_value_func_impl(classname, var, protocol)
             set_func_impl_list.append(func_impl)
@@ -399,15 +412,44 @@ def gen_control_cpp(car_type, protocol, output_dir):
                     init_val = protocol["name"].capitalize(
                     ) + "::" + var["enum"][0].upper()
                 else:
-                    init_val = protocol["name"].capitalize(
-                    ) + "::" + list(var["enum"].values())[0].upper()
+                    init_val = protocol["name"].capitalize() + "::" + list(
+                        var["enum"].values())[0].upper()
 
             set_private_var_init_list.append("  %s_ = %s;" %
                                              (var["name"].lower(), init_val))
+            proto_set_fmt = "  chassis->mutable_%s()->mutable_%s()->set_%s(%s(bytes, length));"
+            func_name = var["name"].lower()
+            proto_set = proto_set_fmt % (car_type, protocol["name"],
+                                         var["name"].lower(), func_name)
+            set_parse_var_to_protocol_list.append(proto_set)
+
+            var["name"] = var["name"].lower()
+            returntype = var["type"]
+            if var["type"] == "enum":
+                returntype = protocol["name"].capitalize(
+                ) + "::" + var["name"].capitalize() + "Type"
+            # gen parse func top
+            fmt = """
+%s %s::%s(const std::uint8_t* bytes, int32_t length) const {"""
+            impl = fmt % (returntype, classname, var["name"])
+
+            byte_info = get_byte_info(var)
+            impl = impl + gen_parse_value_impl(var, byte_info)
+
+            impl = impl + gen_report_value_offset_precision(var, protocol)
+            impl = impl + "}"
+
+            set_parse_func_impl_list.append(impl)
+
         fmt_val["set_private_var_list"] = "\n".join(set_private_var_list)
         fmt_val["set_private_var_init_list"] = "\n".join(
             set_private_var_init_list)
         fmt_val["set_func_impl_list"] = "\n".join(set_func_impl_list)
+        fmt_val["set_parse_var_to_protocol_list"] = "\n".join(
+            set_parse_var_to_protocol_list)
+        fmt_val["set_parse_func_impl_list"] = "\n".join(
+            set_parse_func_impl_list)
+        fmt_val["period"] = protocol["period"]
         fp.write(FMT % fmt_val)
 
 

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2019 The Apollo Authors. All Rights Reserved.
+ * Copyright 2025 The WheelOS Team. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 #pragma once
 
-#include "modules/drivers/canbus/can_comm/protocol_data.h"
 #include "modules/common_msgs/chassis_msgs/chassis_detail.pb.h"
+
+#include "modules/drivers/canbus/can_comm/protocol_data.h"
 
 namespace apollo {
 namespace canbus {
@@ -32,6 +33,9 @@ class %(classname)s : public ::apollo::drivers::canbus::ProtocolData<
 
   uint32_t GetPeriod() const override;
 
+  void Parse(const std::uint8_t* bytes, int32_t length,
+                     ChassisDetail* chassis) const override;
+
   void UpdateData(uint8_t* data) override;
 
   void Reset() override;
@@ -39,6 +43,7 @@ class %(classname)s : public ::apollo::drivers::canbus::ProtocolData<
 
  private:
 %(declare_private_func_list)s
+%(declare_private_parse_func_list)s
 
  private:
 %(declare_private_var_list)s
