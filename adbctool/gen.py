@@ -20,6 +20,7 @@
 
 import sys
 import argparse
+import ast
 
 from adbctool.extract_dbc_meta import extract_dbc_meta
 from adbctool.gen_proto_file import gen_proto_file
@@ -29,70 +30,101 @@ from adbctool.gen_vehicle_controller_and_manager import gen_vehicle_controller_a
 
 def main(args=sys.argv):
     """
-        doc string:
+    Main function to generate vehicle protocol files from a DBC file.
+    It parses arguments, validates them, and then orchestrates the generation process.
     """
     parser = argparse.ArgumentParser(
-        description="adbctool is a tool to generate vehicle protocol",
-        prog="gen.py")
+        description="A tool to generate Apollo vehicle protocol from a DBC file.",
+        prog="gen.py",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
 
-    parser.add_argument("-f",
-                        "--dbc_file",
+    # --- Required Arguments ---
+    parser.add_argument("-f", "--dbc_file",
                         action="store",
                         type=str,
                         required=True,
-                        help="")
-    parser.add_argument("-t",
-                        "--car_type",
+                        help="Specify the path to the input DBC file.")
+    parser.add_argument("-t", "--car_type",
                         action="store",
                         type=str,
                         required=True,
-                        help="")
-    parser.add_argument("-b",
-                        "--black_list",
+                        help="Specify the car type or name (e.g., LINCOLN_MKZ_2017).")
+
+    # --- Control Message Definition (User must choose one of the following) ---
+    control_group = parser.add_argument_group(
+        'Control Message Definition (Choose ONE method)',
+        'Define which CAN messages are control commands.'
+    )
+    control_group.add_argument("--sender",
+                               action="store",
+                               type=str,
+                               default=None,  # Default to None to check if it was provided
+                               help="""The name of the node (ECU) that sends control messages.
+All messages from this sender will be marked as control messages.
+(e.g., --sender MAB)""")
+    control_group.add_argument("--sender_list",
+                               action="store",
+                               type=str,      # Receive as string, parse to list later
+                               default=None,  # Default to None
+                               help="""A Python-style list of CAN message IDs (as strings) for control.
+Use this for fine-grained control or when commands come from multiple ECUs.
+(e.g., --sender_list "['0x180', '0x25A']")""")
+
+    # --- Optional Arguments ---
+    parser.add_argument("-b", "--black_list",
                         action="store",
-                        type=list,
-                        required=False,
-                        default=[],
-                        help="")
-    parser.add_argument("-s",
-                        "--sender_list",
-                        action="store",
-                        type=list,
-                        required=False,
-                        default=[],
-                        help="")
-    parser.add_argument("--sender",
+                        type=str,      # Receive as string
+                        default='[]',  # Default to a string representation of an empty list
+                        help="A Python-style list of message names to exclude from processing.")
+    parser.add_argument("-o", "--output_dir",
                         action="store",
                         type=str,
-                        required=False,
-                        default="MAB",
-                        help="")
-    parser.add_argument("-o",
-                        "--output_dir",
-                        action="store",
-                        type=str,
-                        required=False,
                         default="output/",
-                        help="")
+                        help="Specify the directory to save the generated files (default: ./output/).")
 
-    args = parser.parse_args(args[1:])
+    parsed_args = parser.parse_args(args[1:])
 
-    # TODO(All): refact the parser or use the libraries such as `cantools`
-    # extract dbc file meta to an internal config file
+    # --- Argument Validation ---
+    if parsed_args.sender is None and parsed_args.sender_list is None:
+        parser.error(
+            "You must define the source of control messages. Please provide either --sender or --sender_list.")
+
+    # Safely parse string arguments into Python lists
+    try:
+        black_list = ast.literal_eval(parsed_args.black_list)
+        sender_list = ast.literal_eval(
+            parsed_args.sender_list) if parsed_args.sender_list else []
+    except (ValueError, SyntaxError) as e:
+        print(f"Error: Invalid list format for --black_list or --sender_list. Please use Python list syntax.", file=sys.stderr)
+        print(f"Details: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # --- Generation Logic ---
+    print("🚀 Starting vehicle protocol generation...")
     protocol_conf_file = "dbc.yml"
-    if not extract_dbc_meta(args.dbc_file, protocol_conf_file, args.car_type,
-                            args.black_list, args.sender_list, args.sender):
+    if not extract_dbc_meta(parsed_args.dbc_file, protocol_conf_file, parsed_args.car_type,
+                            black_list, sender_list, parsed_args.sender):
+        print("❌ Failed to extract DBC meta information.", file=sys.stderr)
         return
 
-    # gen proto
-    proto_dir = args.output_dir + "proto/"
+    # Generate proto file
+    proto_dir = parsed_args.output_dir + "proto/"
     gen_proto_file(protocol_conf_file, proto_dir)
 
-    # gen protocol
-    protocol_dir = args.output_dir + "vehicle/" + \
-        args.car_type.lower() + "/protocol/"
+    # Generate protocol files
+    protocol_dir = parsed_args.output_dir + "vehicle/" + \
+        parsed_args.car_type.lower() + "/protocol/"
     gen_protocols(protocol_conf_file, protocol_dir)
 
-    # gen vehicle controller and protocol_manager
-    vehicle_dir = args.output_dir + "vehicle/" + args.car_type.lower() + "/"
+    # Generate vehicle controller and protocol_manager
+    vehicle_dir = parsed_args.output_dir + \
+        "vehicle/" + parsed_args.car_type.lower() + "/"
     gen_vehicle_controller_and_manager(protocol_conf_file, vehicle_dir)
+
+    print(f"\n✅ Vehicle protocol generation complete!")
+    print(f"Files saved in: {parsed_args.output_dir}")
+
+
+if __name__ == '__main__':
+    main()
