@@ -117,7 +117,7 @@ def parse_enum_values(items, protocols):
             var["type"] = "enum"
             var["enum"] = {}
             for idx in range(3, len(items) - 1, 2):
-                enumtype = re.sub('\W+', ' ',
+                enumtype = re.sub(r'\W+', ' ',
                                   items[idx + 1]).strip().replace(" ",
                                                                   "_").upper()
                 enumtype = f"{items[2].upper()}_{enumtype}"
