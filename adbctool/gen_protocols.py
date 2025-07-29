@@ -449,7 +449,8 @@ def gen_control_cpp(car_type, protocol, output_dir):
             set_parse_var_to_protocol_list)
         fmt_val["set_parse_func_impl_list"] = "\n".join(
             set_parse_func_impl_list)
-        fmt_val["period"] = protocol["period"]
+        # There may be no period field in the dbc file, so set a default value
+        fmt_val["period"] = protocol.get("period", 0)
         fp.write(FMT % fmt_val)
 
 
