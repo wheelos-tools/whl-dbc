@@ -165,7 +165,7 @@ def log_summary(car_type, out_file, protocols):
 
 
 def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
-                     sender):
+                     sender, can_interface="socketcan"):
     """
         the main gen_config func, use dbc file to gen a yaml file
         parse every line, if the line is:
@@ -240,6 +240,7 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
 
         # save protocols
         config = {"car_type": car_type, "protocols": protocols}
+        config["can_interface"] = can_interface
         with open(out_file, 'w') as fp:
             yaml.dump(config, fp)
 
@@ -271,4 +272,4 @@ if __name__ == "__main__":
     sender_list = conf["sender_list"]
     sender = conf["sender"]
     extract_dbc_meta(dbc_file, protocol_conf_file, car_type, black_list,
-                     sender_list, sender)
+                     sender_list, sender, can_interface)

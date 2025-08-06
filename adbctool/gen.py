@@ -77,6 +77,11 @@ Use this for fine-grained control or when commands come from multiple ECUs.
                         type=str,      # Receive as string
                         default='[]',  # Default to a string representation of an empty list
                         help="A Python-style list of message names to exclude from processing.")
+    parser.add_argument("--can_interface",
+                        choices=["socketcan", "esdcan"],
+                        default="socketcan",
+                        help="Specify the CAN interface type (default: socketcan)."
+                        )
     parser.add_argument("-o", "--output_dir",
                         action="store",
                         type=str,

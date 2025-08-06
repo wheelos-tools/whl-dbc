@@ -56,7 +56,7 @@ def gen_report_header(car_type, protocol, output_dir):
         h_fp.write(FMT % fmt_val)
 
 
-def gen_report_cpp(car_type, protocol, output_dir):
+def gen_report_cpp(car_type, protocol, can_interface, output_dir):
     """
         doc string:
     """
@@ -71,7 +71,13 @@ def gen_report_cpp(car_type, protocol, output_dir):
         fmt_val["classname"] = classname
         protocol_id = int(protocol["id"].upper(), 16)
         if protocol_id > 2048:
-            fmt_val["id_upper"] = gen_esd_can_extended(protocol["id"].upper())
+            if can_interface == "esd_can":
+                fmt_val["id_upper"] = gen_esd_can_extended(protocol["id"].upper())
+            elif can_interface == "socketcan":
+                fmt_val["id_upper"] = gen_socketcan_extended_id(
+                    protocol["id"].upper())
+            else:
+                fmt_val["id_upper"] = protocol["id"].upper()
         else:
             fmt_val["id_upper"] = protocol["id"].upper()
         set_var_to_protocol_list = []
@@ -372,7 +378,7 @@ void %(classname)s::set_p_%(var_name)s(uint8_t* data,
     return impl + "}\n"
 
 
-def gen_control_cpp(car_type, protocol, output_dir):
+def gen_control_cpp(car_type, protocol, can_interface, output_dir):
     """
         doc string:
     """
@@ -385,7 +391,13 @@ def gen_control_cpp(car_type, protocol, output_dir):
         fmt_val["protocol_name_lower"] = protocol["name"]
         protocol_id = int(protocol["id"].upper(), 16)
         if protocol_id > 2048:
-            fmt_val["id_upper"] = gen_esd_can_extended(protocol["id"].upper())
+            if can_interface == "esd_can":
+                fmt_val["id_upper"] = gen_esd_can_extended(protocol["id"].upper())
+            elif can_interface == "socketcan":
+                fmt_val["id_upper"] = gen_socketcan_extended_id(
+                    protocol["id"].upper())
+            else:
+                fmt_val["id_upper"] = protocol["id"].upper()
         else:
             fmt_val["id_upper"] = protocol["id"].upper()
         classname = protocol["name"].replace('_', '').capitalize()
@@ -488,15 +500,16 @@ def gen_protocols(protocol_conf_file, protocol_dir):
         content = yaml.safe_load(fp)
         protocols = content["protocols"]
         car_type = content["car_type"]
+        can_interface = content.get('can_interface', 'socketcan')
         for p_name in protocols:
             protocol = protocols[p_name]
 
             if protocol["protocol_type"] == "report":
                 gen_report_header(car_type, protocol, protocol_dir)
-                gen_report_cpp(car_type, protocol, protocol_dir)
+                gen_report_cpp(car_type, protocol, can_interface, protocol_dir)
             elif protocol["protocol_type"] == "control":
                 gen_control_header(car_type, protocol, protocol_dir)
-                gen_control_cpp(car_type, protocol, protocol_dir)
+                gen_control_cpp(car_type, protocol, can_interface, protocol_dir)
 
             else:
                 print("Unknown protocol_type:%s" % protocol["protocol_type"])
@@ -512,6 +525,13 @@ def gen_esd_can_extended(str):
     int_id |= 0x20000000
     str = hex(int_id).replace('0x', '')
     return str
+
+
+def gen_socketcan_extended_id(x):
+    int_id = int(x, 16)
+    int_id &= 0x1FFFFFFF
+    int_id |= 0x80000000
+    return f'{int_id:X}'
 
 
 if __name__ == "__main__":
