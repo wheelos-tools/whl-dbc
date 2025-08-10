@@ -28,7 +28,14 @@ Generate c++ code based on dbc file.
 - `vehicle type`: vehicle type
 - `sender`: the sender of the message, the control protocol template will be used for sender
 
+Generate code using a specific sender name
 ```shell
-# adbctool -f <vehicle.dbc> -t <vehicle_type> --sender <sender>
+# adbctool -f <vehicle.dbc> -t <vehicle_type> --sender <sender_name>
 adbctool -f test/acura_ilx_2016_nidec.dbc -t acura_ilx --sender ADAS
+```
+
+Or generate code using a list of sender IDs (in hexadecimal)
+```shell
+# adbctool -f <vehicle.dbc> -t <vehicle_type> --sender_list <sender_id_hex>
+adbctool -f test/acura_ilx_2016_nidec.dbc -t acura_ilx --sender_list 0x400
 ```

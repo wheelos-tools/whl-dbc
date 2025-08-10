@@ -68,9 +68,9 @@ All messages from this sender will be marked as control messages.
         nargs='+',
         type=str,
         default=None,
-        help="""A list of CAN message IDs (as strings) for control.
+        help="""A list of CAN message IDs in hexadecimal format (e.g., 0x180 0x25A).
     Use this for fine-grained control or when commands come from multiple ECUs.
-    (e.g., --sender_list 180 25A)""")
+    Example: --sender_list 0x180 0x25A""")
 
     # --- Optional Arguments ---
     parser.add_argument("-b", "--black_list",

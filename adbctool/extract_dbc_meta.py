@@ -173,7 +173,7 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
         5 segments, and segments[0] is "BO_", then begin parse every signal in the following line
 
     """
-    sender_list = {str(item).upper() for item in sender_list}
+    sender_list = {format(int(item, 16), "x") for item in sender_list}
 
     # Get the file character encoding
     encoding, _ = detect_file_encoding(dbc_file)
@@ -201,8 +201,7 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                     if protocol["id"] in black_list:
                         continue
                     protocol["protocol_type"] = "report"
-                    if protocol["id"] in sender_list or protocol[
-                            "sender"] == sender:
+                    if protocol["id"] in sender_list or protocol["sender"] == sender:
                         protocol["protocol_type"] = "control"
                     protocol["vars"] = []
                     in_protocol = True
