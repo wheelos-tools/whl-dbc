@@ -63,13 +63,14 @@ def main(args=sys.argv):
                                help="""The name of the node (ECU) that sends control messages.
 All messages from this sender will be marked as control messages.
 (e.g., --sender MAB)""")
-    control_group.add_argument("--sender_list",
-                               action="store",
-                               type=str,      # Receive as string, parse to list later
-                               default=None,  # Default to None
-                               help="""A Python-style list of CAN message IDs (as strings) for control.
-Use this for fine-grained control or when commands come from multiple ECUs.
-(e.g., --sender_list "['0x180', '0x25A']")""")
+    control_group.add_argument(
+        "--sender_list",
+        nargs='+',
+        type=str,
+        default=None,
+        help="""A list of CAN message IDs (as strings) for control.
+    Use this for fine-grained control or when commands come from multiple ECUs.
+    (e.g., --sender_list 180 25A)""")
 
     # --- Optional Arguments ---
     parser.add_argument("-b", "--black_list",
@@ -98,8 +99,7 @@ Use this for fine-grained control or when commands come from multiple ECUs.
     # Safely parse string arguments into Python lists
     try:
         black_list = ast.literal_eval(parsed_args.black_list)
-        sender_list = ast.literal_eval(
-            parsed_args.sender_list) if parsed_args.sender_list else []
+        sender_list = parsed_args.sender_list if parsed_args.sender_list else []
     except (ValueError, SyntaxError) as e:
         print(f"Error: Invalid list format for --black_list or --sender_list. Please use Python list syntax.", file=sys.stderr)
         print(f"Details: {e}", file=sys.stderr)
