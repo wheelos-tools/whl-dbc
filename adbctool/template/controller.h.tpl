@@ -78,6 +78,10 @@ class %(car_type_cap)sController final : public VehicleController {
   // gas:0.00~99.99 unit:
   void Throttle(double throttle) override;
 
+  // drive with speed
+  // unit: m/s, fwd:+, rev:-
+  virtual void Speed(double speed) override;
+
   // drive with acceleration/deceleration
   // acc:-7.0~5.0 unit:m/s^2
   void Acceleration(double acc) override;

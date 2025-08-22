@@ -290,11 +290,23 @@ void %(car_type_cap)sController::Throttle(double pedal) {
   */
 }
 
+// drive with speed
+// unit: m/s, fwd:+, rev:-
+void $(car_type_cap)sController::Speed(double speed) {
+  if (driving_mode() != Chassis::COMPLETE_AUTO_DRIVE &&
+      driving_mode() != Chassis::AUTO_SPEED_ONLY) {
+    AINFO << "The current drive mode does not need to set speed.";
+    return;
+  }
+  /* ADD YOUR OWN CAR CHASSIS OPERATION
+  */
+}
+
 // confirm the car is driven by acceleration command or drive/brake pedal
 // drive with acceleration/deceleration
 // acc:-7.0 ~ 5.0, unit:m/s^2
 void %(car_type_cap)sController::Acceleration(double acc) {
-  if (driving_mode() != Chassis::COMPLETE_AUTO_DRIVE ||
+  if (driving_mode() != Chassis::COMPLETE_AUTO_DRIVE &&
       driving_mode() != Chassis::AUTO_SPEED_ONLY) {
     AINFO << "The current drive mode does not need to set acceleration.";
     return;
