@@ -98,6 +98,8 @@ def parse_signal_comment(items, protocols):
         return
     if int(items[2]) > STANDARD_CAN_ID:
         protocol_id = gen_can_id_extended(protocol_id)
+    if protocol_id not in protocols:
+        return
     for var in protocols[protocol_id]["vars"]:
         if var["name"] == items[3]:
             var["description"] = items[4][:-1]
@@ -112,6 +114,8 @@ def parse_enum_values(items, protocols):
         return
     if int(items[1]) > STANDARD_CAN_ID:
         protocol_id = gen_can_id_extended(protocol_id)
+    if protocol_id not in protocols:
+        return
     for var in protocols[protocol_id]["vars"]:
         if var["name"] == items[2]:
             var["type"] = "enum"
@@ -186,7 +190,10 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
 
         try:
             for line_num, line in enumerate(f, start=1):
-                items = shlex.split(line)
+                try:
+                    items = shlex.split(line)
+                except ValueError:
+                    continue
 
                 if len(items) == 5 and items[0] == "BO_":
                     p_name = items[2][:-1].lower()
