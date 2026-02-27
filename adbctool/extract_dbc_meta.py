@@ -136,6 +136,8 @@ def parse_message_cycle_time(items, protocols):
         return
     if int(items[3]) > STANDARD_CAN_ID:
         protocol_id = gen_can_id_extended(protocol_id)
+    if protocol_id not in protocols:
+        return
     period = items[4].rstrip(' ;')
     protocols[protocol_id]['period'] = period
 
@@ -169,7 +171,7 @@ def log_summary(car_type, out_file, protocols):
 
 
 def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
-                     sender, can_interface="socketcan"):
+                     sender, can_interface="socketcan", strict_dbc=True):
     """
         the main gen_config func, use dbc file to gen a yaml file
         parse every line, if the line is:
@@ -187,15 +189,62 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
         protocols = {}
         protocol = {}
         p_name = ""
+        pending_multiline = None
+        pending_start_line = 0
+
+        def flush_current_protocol():
+            nonlocal in_protocol, protocol, protocols
+            in_protocol = False
+            if len(protocol) != 0 and len(protocol["vars"]) != 0 and len(
+                    protocol["vars"]) < 65:
+                protocols[protocol["id"]] = protocol
+            protocol = {}
 
         try:
             for line_num, line in enumerate(f, start=1):
+                current_line = line
+                if pending_multiline is not None:
+                    current_line = pending_multiline + line
+                stripped_line = current_line.strip()
+
+                if pending_multiline is None:
+                    if not stripped_line:
+                        continue
+                    if stripped_line.startswith('#') or stripped_line.startswith('//'):
+                        if strict_dbc:
+                            raise ValueError(
+                                f"Invalid non-DBC comment syntax at line {line_num}: {stripped_line}"
+                            )
+                        continue
+
                 try:
-                    items = shlex.split(line)
-                except ValueError:
+                    items = shlex.split(current_line)
+                except ValueError as e:
+                    if "No closing quotation" in str(e) and (
+                            pending_multiline is not None
+                            or stripped_line.startswith("CM_")):
+                        if pending_multiline is None:
+                            pending_multiline = current_line
+                            pending_start_line = line_num
+                        else:
+                            pending_multiline = current_line
+                        continue
+                    if strict_dbc:
+                        error_line = pending_start_line if pending_multiline is not None else line_num
+                        pending_multiline = None
+                        pending_start_line = 0
+                        raise ValueError(
+                            f"Invalid DBC tokenization at line {error_line}: {e}")
+                    pending_multiline = None
+                    pending_start_line = 0
                     continue
 
+                pending_multiline = None
+                pending_start_line = 0
+
                 if len(items) == 5 and items[0] == "BO_":
+                    if in_protocol:
+                        flush_current_protocol()
                     p_name = items[2][:-1].lower()
                     protocol = {}
                     if int(items[1]) > MAX_CAN_ID:
@@ -220,13 +269,7 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                             if var_info["len"] <= 32:
                                 protocol["vars"].append(var_info)
                     else:
-                        in_protocol = False
-                        if len(protocol) != 0 and len(
-                                protocol["vars"]) != 0 and len(
-                                    protocol["vars"]) < 65:
-                            protocols[protocol["id"]] = protocol
-                            # print protocol
-                            protocol = {}
+                        flush_current_protocol()
 
                 if len(items) == 5 and items[0] == "CM_" and items[1] == "SG_":
                     parse_signal_comment(items, protocols)
@@ -237,6 +280,13 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
                 if len(items) == 5 and items[0] == 'BA_' and items[
                         1] == 'GenMsgCycleTime' and items[2] == 'BO_':
                     parse_message_cycle_time(items, protocols)
+
+            if in_protocol:
+                flush_current_protocol()
+            if pending_multiline is not None and strict_dbc:
+                raise ValueError(
+                    f"Invalid DBC tokenization at line {pending_start_line}: No closing quotation"
+                )
 
         except (ValueError, UnicodeDecodeError) as e:
             print(f"Error occurred on line {line_num}: {e}")
@@ -278,4 +328,4 @@ if __name__ == "__main__":
     sender_list = conf["sender_list"]
     sender = conf["sender"]
     extract_dbc_meta(dbc_file, protocol_conf_file, car_type, black_list,
-                     sender_list, sender, can_interface)
+                     sender_list, sender, can_interface="socketcan")
