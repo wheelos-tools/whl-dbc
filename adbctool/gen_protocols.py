@@ -72,7 +72,8 @@ def gen_report_cpp(car_type, protocol, can_interface, output_dir):
         protocol_id = int(protocol["id"].upper(), 16)
         if protocol_id > 2048:
             if can_interface == "esd_can":
-                fmt_val["id_upper"] = gen_esd_can_extended(protocol["id"].upper())
+                fmt_val["id_upper"] = gen_esd_can_extended(
+                    protocol["id"].upper())
             elif can_interface == "socketcan":
                 fmt_val["id_upper"] = gen_socketcan_extended_id(
                     protocol["id"].upper())
@@ -83,17 +84,17 @@ def gen_report_cpp(car_type, protocol, can_interface, output_dir):
         set_var_to_protocol_list = []
         func_impl_list = []
         for var in protocol["vars"]:
-            var["name"] = var["name"].lower()
+            var_name = var["name"].lower()
 
             returntype = var["type"]
             if var["type"] == "enum":
                 returntype = protocol["name"].capitalize(
-                ) + "::" + var["name"].capitalize() + "Type"
+                ) + "::" + var_name.capitalize() + "Type"
             # gen func top
             fmt = """
 // config detail: %s
 %s %s::%s(const std::uint8_t* bytes, int32_t length) const {"""
-            impl = fmt % (str(var), returntype, classname, var["name"])
+            impl = fmt % (str(var), returntype, classname, var_name)
 
             byte_info = get_byte_info(var)
             impl = impl + gen_parse_value_impl(var, byte_info)
@@ -103,9 +104,9 @@ def gen_report_cpp(car_type, protocol, can_interface, output_dir):
 
             func_impl_list.append(impl)
             proto_set_fmt = "  chassis->mutable_%s()->mutable_%s()->set_%s(%s(bytes, length));"
-            func_name = var["name"]
+            func_name = var_name
             proto_set = proto_set_fmt % (car_type, protocol["name"],
-                                         var["name"], func_name)
+                                         var_name, func_name)
             set_var_to_protocol_list.append(proto_set)
         fmt_val["set_var_to_protocol_list"] = "\n".join(
             set_var_to_protocol_list)
@@ -120,8 +121,7 @@ def gen_report_value_offset_precision(var, protocol):
     impl = ""
     if var["is_signed_var"]:
         fmt = "\n  x <<= %d;\n  x >>= %d;\n"
-        # x is an int32_t var
-        shift_bit = 32 - var["len"]
+        shift_bit = 64 - var["len"]
         impl = impl + fmt % (shift_bit, shift_bit)
 
     returntype = var["type"]
@@ -153,10 +153,10 @@ def gen_parse_value_impl(var, byte_info):
         info = byte_info[i]
         impl = impl + fmt % (i, info["byte"])
         if i == 0:
-            impl = impl + "  int32_t x = t%d.get_byte(%d, %d);\n" %\
+            impl = impl + "  int64_t x = t%d.get_byte(%d, %d);\n" %\
                 (i, info["start_bit"], info["len"])
         elif i == 1:
-            impl = impl + "  int32_t t = t%d.get_byte(%d, %d);\n  x <<= %d;\n  x |= t;\n" %\
+            impl = impl + "  int64_t t = t%d.get_byte(%d, %d);\n  x <<= %d;\n  x |= t;\n" %\
                 (i, info["start_bit"], info["len"], info["len"])
         else:
             impl = impl + "  t = t%d.get_byte(%d, %d);\n  x <<= %d;\n  x |= t;\n" %\
@@ -267,17 +267,17 @@ def gen_control_decode_offset_precision(var):
     """
     impl = "\n"
     range_info = get_range_info(var)
-    if var["type"] == "double":
+    if var["type"] == "double" and range_info:
         if range_info["low"].find(".") == -1:
             range_info["low"] = "%s.0" % range_info["low"]
         if range_info["high"].find(".") == -1:
             range_info["high"] = "%s.0" % range_info["high"]
 
-    if var["type"] != "enum" and var["type"] != "bool":
+    if var["type"] != "enum" and var["type"] != "bool" and range_info:
         impl = impl + "  %s = ProtocolData::BoundedValue(%s, %s, %s);\n" %\
             (var["name"].lower(), range_info["low"],
              range_info["high"], var["name"].lower())
-    impl = impl + "  int x ="
+    impl = impl + "  int64_t x = static_cast<int64_t>("
     if var["offset"] != 0.0:
         impl = impl + " (%s - %f)" % (var["name"].lower(), var["offset"])
     else:
@@ -285,7 +285,10 @@ def gen_control_decode_offset_precision(var):
 
     if var["precision"] != 1.0:
         impl = impl + " / %f" % var["precision"]
-    return impl + ";\n"
+    impl = impl + ");\n"
+    impl = impl + "  uint64_t ux = static_cast<uint64_t>(x);\n"
+    impl = impl + "  ux &= 0x%XULL;\n" % ((1 << var["len"]) - 1)
+    return impl
 
 
 def gen_control_encode_one_byte_value_impl(var, byte_info):
@@ -293,10 +296,12 @@ def gen_control_encode_one_byte_value_impl(var, byte_info):
         only has int and double, int can hold all the value whatever it is signed or unsigned
     """
     fmt = """
+  const uint8_t t = static_cast<uint8_t>(ux & %sULL);
   Byte to_set(data + %d);
-  to_set.set_value(x, %d, %d);
+  to_set.set_value(t, %d, %d);
 """
-    return fmt % (byte_info["byte"], byte_info["start_bit"], byte_info["len"])
+    mask_bit = "0x%X" % ((1 << byte_info["len"]) - 1)
+    return fmt % (mask_bit, byte_info["byte"], byte_info["start_bit"], byte_info["len"])
 
 
 def get_range_info(var):
@@ -318,7 +323,7 @@ def gen_control_encode_value_impl(var, byte_info):
     """
     impl = "  uint8_t t = 0;\n"
     fmt = """
-  t = x & %s;
+  t = static_cast<uint8_t>(ux & %sULL);
   Byte to_set%d(data + %d);
   to_set%d.set_value(t, %d, %d);
 """
@@ -326,7 +331,7 @@ def gen_control_encode_value_impl(var, byte_info):
     for i in range(0, len(byte_info)):
         info = byte_info[i]
         if i != 0:
-            impl = impl + "  x >>= %d;\n" % shift_bit
+            impl = impl + "  ux >>= %d;\n" % shift_bit
         mask_bit = "0x%X" % ((1 << info["len"]) - 1)
         impl = impl + fmt % (mask_bit, i, info["byte"], i, info["start_bit"],
                              info["len"])
@@ -342,7 +347,7 @@ def gen_control_value_func_impl(classname, var, protocol):
     if var["len"] > 32:
         print("This generator not support big than four bytes var." +
               "protocol classname: %s, var_name:%s " %
-              (class_name, var["name"]))
+              (classname, var["name"]))
         return impl
 
     fmt = """
@@ -392,7 +397,8 @@ def gen_control_cpp(car_type, protocol, can_interface, output_dir):
         protocol_id = int(protocol["id"].upper(), 16)
         if protocol_id > 2048:
             if can_interface == "esd_can":
-                fmt_val["id_upper"] = gen_esd_can_extended(protocol["id"].upper())
+                fmt_val["id_upper"] = gen_esd_can_extended(
+                    protocol["id"].upper())
             elif can_interface == "socketcan":
                 fmt_val["id_upper"] = gen_socketcan_extended_id(
                     protocol["id"].upper())
@@ -409,10 +415,10 @@ def gen_control_cpp(car_type, protocol, can_interface, output_dir):
         set_parse_var_to_protocol_list = []
         set_parse_func_impl_list = []
         for var in protocol["vars"]:
+            var_name = var["name"].lower()
             func_impl = gen_control_value_func_impl(classname, var, protocol)
             set_func_impl_list.append(func_impl)
-            set_private_var = "  set_p_%s(data, %s_);" % (var["name"].lower(),
-                                                          var["name"].lower())
+            set_private_var = "  set_p_%s(data, %s_);" % (var_name, var_name)
             set_private_var_list.append(set_private_var)
             init_val = "0"
             if var["type"] == "double":
@@ -428,22 +434,20 @@ def gen_control_cpp(car_type, protocol, can_interface, output_dir):
                         var["enum"].values())[0].upper()
 
             set_private_var_init_list.append("  %s_ = %s;" %
-                                             (var["name"].lower(), init_val))
+                                             (var_name, init_val))
             proto_set_fmt = "  chassis->mutable_%s()->mutable_%s()->set_%s(%s(bytes, length));"
-            func_name = var["name"].lower()
+            func_name = var_name
             proto_set = proto_set_fmt % (car_type, protocol["name"],
-                                         var["name"].lower(), func_name)
+                                         var_name, func_name)
             set_parse_var_to_protocol_list.append(proto_set)
-
-            var["name"] = var["name"].lower()
             returntype = var["type"]
             if var["type"] == "enum":
                 returntype = protocol["name"].capitalize(
-                ) + "::" + var["name"].capitalize() + "Type"
+                ) + "::" + var_name.capitalize() + "Type"
             # gen parse func top
             fmt = """
 %s %s::%s(const std::uint8_t* bytes, int32_t length) const {"""
-            impl = fmt % (returntype, classname, var["name"])
+            impl = fmt % (returntype, classname, var_name)
 
             byte_info = get_byte_info(var)
             impl = impl + gen_parse_value_impl(var, byte_info)
@@ -509,7 +513,8 @@ def gen_protocols(protocol_conf_file, protocol_dir):
                 gen_report_cpp(car_type, protocol, can_interface, protocol_dir)
             elif protocol["protocol_type"] == "control":
                 gen_control_header(car_type, protocol, protocol_dir)
-                gen_control_cpp(car_type, protocol, can_interface, protocol_dir)
+                gen_control_cpp(car_type, protocol,
+                                can_interface, protocol_dir)
 
             else:
                 print("Unknown protocol_type:%s" % protocol["protocol_type"])

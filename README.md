@@ -27,6 +27,10 @@ python -m pip install -U pip setuptools
 python -m pip install -e .
 ```
 
+Note: parser runs in strict DBC mode by default. Non-standard comment lines such as
+`# ...` and `// ...` are treated as invalid syntax. Use standard DBC comment entries
+(`CM_ ...`) in source files.
+
 ## Example
 
 Generate c++ code based on dbc file.
