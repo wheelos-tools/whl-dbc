@@ -136,6 +136,71 @@ class TestGenerationPipeline(unittest.TestCase):
                 vehicle_dir, "testcar_vehicle_factory.cc")))
             self.assertTrue(os.path.exists(os.path.join(vehicle_dir, "BUILD")))
 
+    def test_control_protocol_uses_explicit_cast_and_mask(self):
+        config = {
+            "car_type": "testcar",
+            "can_interface": "socketcan",
+            "protocols": {
+                "183": {
+                    "id": "183",
+                    "name": "adcuthrottlectrl_183",
+                    "sender": "ADAS",
+                    "protocol_type": "control",
+                    "vars": [
+                        {
+                            "name": "THROTTLE_PEDAL_REQ",
+                            "bit": 8,
+                            "len": 16,
+                            "order": "intel",
+                            "is_signed_var": False,
+                            "offset": 0.0,
+                            "precision": 0.1,
+                            "physical_range": "[0|100]",
+                            "physical_unit": "",
+                            "type": "double",
+                        },
+                        {
+                            "name": "GEAR_TARGET",
+                            "bit": 0,
+                            "len": 4,
+                            "order": "intel",
+                            "is_signed_var": False,
+                            "offset": 0.0,
+                            "precision": 1.0,
+                            "physical_range": "[0|15]",
+                            "physical_unit": "",
+                            "type": "enum",
+                            "enum": {
+                                0: "GEAR_TARGET_PARK",
+                                1: "GEAR_TARGET_DRIVE",
+                            },
+                        },
+                    ],
+                }
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_file = os.path.join(tmp_dir, "dbc.yml")
+            with open(config_file, "w") as fp:
+                yaml.safe_dump(config, fp)
+
+            protocol_dir = os.path.join(
+                tmp_dir, "vehicle", "testcar", "protocol") + "/"
+            gen_protocols(config_file, protocol_dir)
+
+            control_file = os.path.join(
+                protocol_dir, "adcuthrottlectrl_183.cc")
+            self.assertTrue(os.path.exists(control_file))
+            with open(control_file, "r") as fp:
+                content = fp.read()
+
+            self.assertIn("int64_t x = static_cast<int64_t>(", content)
+            self.assertIn("uint64_t ux = static_cast<uint64_t>(x);", content)
+            self.assertIn("ux &= 0xFFFFULL;", content)
+            self.assertIn("ux &= 0xFULL;", content)
+            self.assertIn("t = static_cast<uint8_t>(ux &", content)
+
 
 if __name__ == '__main__':
     unittest.main()
