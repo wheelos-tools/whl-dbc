@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "adbctool"
-version = "0.1.5"
+version = "0.1.6"
 description = "apollo dbc tool"
 readme = "README.md"
 requires-python = ">=3.6"

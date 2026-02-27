@@ -20,6 +20,13 @@ You can install adbctool by following cmd.
 pip3 install adbctool
 ```
 
+For local development (editable install):
+
+```shell
+python -m pip install -U pip setuptools
+python -m pip install -e .
+```
+
 ## Example
 
 Generate c++ code based on dbc file.
