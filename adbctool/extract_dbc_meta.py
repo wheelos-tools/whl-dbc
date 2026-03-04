@@ -63,6 +63,16 @@ def extract_var_info(items):
     return car_var
 
 
+def is_hex_string(s):
+    """Return True if `s` can be interpreted as a hexadecimal integer."""
+    try:
+        s_str = str(s).strip()
+        int(s_str, 16)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
 def detect_file_encoding(file_path,
                          default_encoding='utf-8',
                          confidence_threshold=0.5):
@@ -179,7 +189,15 @@ def extract_dbc_meta(dbc_file, out_file, car_type, black_list, sender_list,
         5 segments, and segments[0] is "BO_", then begin parse every signal in the following line
 
     """
-    sender_list = {format(int(item, 16), "x") for item in sender_list}
+    # Validate sender_list contains only hex values
+    invalid_items = [item for item in sender_list if not is_hex_string(item)]
+    if invalid_items:
+        raise ValueError(
+            f"Invalid sender_list: {invalid_items}. "
+            "Each entry must be a hexadecimal number (e.g. '1A3' or '0x1A3')."
+        )
+    sender_list = {format(int(str(item).strip(), 16), "x")
+                   for item in sender_list}
 
     # Get the file character encoding
     encoding, _ = detect_file_encoding(dbc_file)
