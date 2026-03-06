@@ -10,10 +10,12 @@ cc_library(
     hdrs = [
         "%(car_type_lower)s_vehicle_factory.h",
     ],
+    alwayslink = True,
     deps = [
         ":%(car_type_lower)s_controller",
         ":%(car_type_lower)s_message_manager",
         "//modules/canbus/vehicle:abstract_vehicle_factory",
+        "//modules/canbus/vehicle:vehicle_factory_core",
     ],
 )
 
@@ -28,6 +30,7 @@ cc_library(
     deps = [
         "//modules/drivers/canbus/common:canbus_common",
         "//modules/common_msgs/chassis_msgs:chassis_detail_cc_proto",
+        "//modules/canbus/vehicle:chassis_extension_tools",
         "//modules/drivers/canbus/can_comm:message_manager_base",
         "//modules/canbus/vehicle/%(car_type_lower)s/protocol:canbus_%(car_type_lower)s_protocol",
     ],
@@ -46,9 +49,10 @@ cc_library(
         "//modules/drivers/canbus/can_comm:can_sender",
         "//modules/drivers/canbus/common:canbus_common",
         "//modules/common_msgs/chassis_msgs:chassis_detail_cc_proto",
+        "//modules/canbus/vehicle:chassis_extension_tools",
         "//modules/drivers/canbus/can_comm:message_manager_base",
         "//modules/canbus/vehicle:vehicle_controller_base",
-        "//modules/canbus/vehicle/%(car_type_lower)s/protocol:canbus_%(car_type_lower)s_protocol",
+        "//modules/canbus/vehicle/%(car_type_lower)s/protocol:canbus_%(car_type_lower)s_protocol"
     ],
 )
 

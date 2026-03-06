@@ -112,6 +112,27 @@ def gen_vehicle_controller_cpp(content, output_dir):
         protocol_add_list.sort()
         fmt_val["protocol_ptr_get_list"] = "\n".join(protocol_ptr_get_list)
         fmt_val["protocol_add_list"] = "\n".join(protocol_add_list)
+        # Compatible with the latest controller.cc.tpl placeholders.
+        fmt_val["protocol_ptr_get_logic"] = fmt_val["protocol_ptr_get_list"]
+        fmt_val["protocol_sender_add_logic"] = fmt_val["protocol_add_list"]
+
+        fmt_val["chassis_detail_mapping_logic"] = "  // TODO: map chassis_detail fields to chassis_ when needed."
+        fmt_val["enable_auto_mode_impl"] = "  // TODO: set vehicle-specific auto-drive enable bits here."
+        fmt_val["enable_steering_only_mode_impl"] = "  set_driving_mode(Chassis::AUTO_STEER_ONLY);\n  can_sender_->Update();\n  return ErrorCode::OK;"
+        fmt_val["enable_speed_only_mode_impl"] = "  set_driving_mode(Chassis::AUTO_SPEED_ONLY);\n  can_sender_->Update();\n  return ErrorCode::OK;"
+        fmt_val["gear_impl_logic"] = "  // TODO: implement gear command mapping."
+        fmt_val["brake_impl_logic"] = "  // TODO: implement brake command mapping."
+        fmt_val["throttle_impl_logic"] = "  // TODO: implement throttle command mapping."
+        fmt_val["speed_impl_logic"] = "  // TODO: implement speed command mapping."
+        fmt_val["acceleration_impl_logic"] = "  // TODO: implement acceleration command mapping."
+        fmt_val["steer_impl_logic"] = "  // TODO: implement steering command mapping."
+        fmt_val["steer_with_spd_impl_logic"] = "  // TODO: implement steering with speed command mapping."
+        fmt_val["epb_impl_logic"] = "  // TODO: implement EPB command mapping."
+        fmt_val["beam_impl_logic"] = "  // TODO: implement beam command mapping."
+        fmt_val["horn_impl_logic"] = "  // TODO: implement horn command mapping."
+        fmt_val["turn_signal_impl_logic"] = "  // TODO: implement turn signal command mapping."
+        fmt_val["check_chassis_error_impl"] = "  return false;"
+        fmt_val["check_response_impl"] = "  (void)flags;\n  (void)need_wait;\n  return true;"
         cpp.write(FMT % fmt_val)
 
 

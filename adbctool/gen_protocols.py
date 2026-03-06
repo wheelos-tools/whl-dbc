@@ -103,9 +103,10 @@ def gen_report_cpp(car_type, protocol, can_interface, output_dir):
             impl = impl + "}"
 
             func_impl_list.append(impl)
-            proto_set_fmt = "  chassis->mutable_%s()->mutable_%s()->set_%s(%s(bytes, length));"
+            proto_set_fmt = """  MutableChassisExtension<::apollo::canbus::%s>(chassis)
+        ->mutable_%s()->set_%s(%s(bytes, length));"""
             func_name = var_name
-            proto_set = proto_set_fmt % (car_type, protocol["name"],
+            proto_set = proto_set_fmt % (car_type.capitalize(), protocol["name"],
                                          var_name, func_name)
             set_var_to_protocol_list.append(proto_set)
         fmt_val["set_var_to_protocol_list"] = "\n".join(
@@ -435,9 +436,10 @@ def gen_control_cpp(car_type, protocol, can_interface, output_dir):
 
             set_private_var_init_list.append("  %s_ = %s;" %
                                              (var_name, init_val))
-            proto_set_fmt = "  chassis->mutable_%s()->mutable_%s()->set_%s(%s(bytes, length));"
+            proto_set_fmt = """  MutableChassisExtension<::apollo::canbus::%s>(chassis)
+        ->mutable_%s()->set_%s(%s(bytes, length));"""
             func_name = var_name
-            proto_set = proto_set_fmt % (car_type, protocol["name"],
+            proto_set = proto_set_fmt % (car_type.capitalize(), protocol["name"],
                                          var_name, func_name)
             set_parse_var_to_protocol_list.append(proto_set)
             returntype = var["type"]
@@ -465,6 +467,12 @@ def gen_control_cpp(car_type, protocol, can_interface, output_dir):
             set_parse_var_to_protocol_list)
         fmt_val["set_parse_func_impl_list"] = "\n".join(
             set_parse_func_impl_list)
+        # Compatible with latest control_protocol.cc.tpl placeholders.
+        fmt_val["set_parse_logic"] = fmt_val["set_parse_var_to_protocol_list"]
+        fmt_val["set_p_func_call_list"] = fmt_val["set_private_var_list"]
+        fmt_val["set_func_impl_block"] = "\n".join(
+            [fmt_val["set_func_impl_list"], fmt_val["set_parse_func_impl_list"]]
+        )
         # There may be no period field in the dbc file, so set a default value
         fmt_val["period"] = protocol.get("period", 0)
         fp.write(FMT % fmt_val)

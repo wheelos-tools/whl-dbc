@@ -22,6 +22,7 @@ import re
 import shutil
 import sys
 import yaml
+from pathlib import Path
 
 
 def write_single_protocol_vars(pb_fp, p):
@@ -133,6 +134,24 @@ def gen_proto_file(config_file, work_dir):
 
             # todo(zero): need fix
             # update_detail_pb(car_type)
+
+        gen_proto_build_file(car_type, work_dir)
+
+
+def get_tpl_fmt(tpl_file):
+    tpl_file = Path(__file__).parent.joinpath(tpl_file)
+    with open(tpl_file, 'r') as tpl:
+        fmt = tpl.readlines()
+    return "".join(fmt)
+
+
+def gen_proto_build_file(car_type, work_dir):
+    build_tpl_file = "template/proto_BUILD.tpl"
+    fmt = get_tpl_fmt(build_tpl_file)
+    with open(os.path.join(work_dir, "BUILD"), "w") as build_fp:
+        fmt_var = {}
+        fmt_var["car_type_lower"] = car_type.lower()
+        build_fp.write(fmt % fmt_var)
 
 
 if __name__ == "__main__":

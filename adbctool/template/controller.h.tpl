@@ -1,31 +1,30 @@
-/******************************************************************************
- * Copyright 2019 The Apollo Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
+// Copyright 2026 WheelOS All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #pragma once
 
 #include <memory>
 #include <thread>
-
-#include "modules/canbus/vehicle/vehicle_controller.h"
+#include <mutex>
 
 #include "modules/canbus/proto/canbus_conf.pb.h"
-#include "modules/common_msgs/chassis_msgs/chassis.pb.h"
 #include "modules/canbus/proto/vehicle_parameter.pb.h"
 #include "modules/common_msgs/basic_msgs/error_code.pb.h"
+#include "modules/common_msgs/chassis_msgs/chassis.pb.h"
 #include "modules/common_msgs/control_msgs/control_cmd.pb.h"
+
+#include "modules/canbus/vehicle/vehicle_controller.h"
 
 %(control_protocol_include_list)s
 
@@ -35,15 +34,15 @@ namespace %(car_type_lower)s {
 
 class %(car_type_cap)sController final : public VehicleController {
  public:
-
-  explicit %(car_type_cap)sController() {};
+  %(car_type_cap)sController() {}
 
   virtual ~%(car_type_cap)sController();
 
   ::apollo::common::ErrorCode Init(
       const VehicleParameter& params,
-      CanSender<::apollo::canbus::ChassisDetail> *const can_sender,
-      MessageManager<::apollo::canbus::ChassisDetail> *const message_manager) override;
+      CanSender<::apollo::canbus::ChassisDetail>* const can_sender,
+      MessageManager<::apollo::canbus::ChassisDetail>* const message_manager)
+      override;
 
   bool Start() override;
 

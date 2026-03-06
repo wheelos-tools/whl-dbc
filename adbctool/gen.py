@@ -21,6 +21,7 @@
 import sys
 import argparse
 import ast
+import os
 
 from adbctool.extract_dbc_meta import extract_dbc_meta
 from adbctool.gen_proto_file import gen_proto_file
@@ -79,7 +80,7 @@ All messages from this sender will be marked as control messages.
                         default='[]',  # Default to a string representation of an empty list
                         help="A Python-style list of message names to exclude from processing.")
     parser.add_argument("--can_interface",
-                        choices=["socketcan", "esdcan"],
+                        choices=["socketcan", "esd_can"],
                         default="socketcan",
                         help="Specify the CAN interface type (default: socketcan)."
                         )
@@ -114,7 +115,8 @@ All messages from this sender will be marked as control messages.
         return
 
     # Generate proto file
-    proto_dir = parsed_args.output_dir + "proto/"
+    proto_dir = parsed_args.output_dir + "vehicle/" + \
+        parsed_args.car_type.lower() + "/proto/"
     gen_proto_file(protocol_conf_file, proto_dir)
 
     # Generate protocol files
