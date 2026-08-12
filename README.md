@@ -1,52 +1,121 @@
-## Gen Vehicle Protocol Tool
+# adbctool
 
-`adbctool` is a convinent tool to let you quickly generate a nearly complete code for a new vehicle for [Apollo](https://github.com/ApolloAuto/apollo).
+## Overview
 
-You only have to do is to have the dbc file (which is a communication protocol for the car, which is usually made by the vehicle integrated company), and write a less 10 lines config for generate an encode/decode.
+`adbctool` is a Python command-line tool for generating vehicle protocol
+source files from a CAN DBC file. It parses message and signal metadata,
+classifies messages as control or report messages, and generates:
 
-## How to get vehicle's DBC file
+- a protobuf file for the vehicle protocols;
+- C++ protocol header and source files;
+- vehicle controller, message manager, and vehicle factory files;
+- `BUILD` files for the generated directories.
 
-- [opendbc](https://github.com/commaai/opendbc) is a project that opens the vehicle dbc protocol.
-- [openvehicles](https://docs.openvehicles.com/en/latest/index.html) is an open car project that contains any vehicle information you want to know.
-- [whl-vehicles](https://github.com/daohu527/vehicles) Apollo vehicle protocols based by opendbc.
+The parser runs in strict DBC mode by default. Non-standard comment lines such
+as `# ...` and `// ...` are rejected; use standard `CM_ ...` DBC comment entries
+instead.
 
-## Quick start
+## Role in WheelOS
 
-#### Install
+This repository is a **Tools** component in WheelOS. It converts a vehicle's
+DBC definition into source artifacts that can be incorporated into the
+vehicle CAN bus integration layer.
 
-You can install adbctool by following cmd.
-
-```shell
-pip3 install adbctool
+```text
+WheelOS
+ |
++--- Tools
+     |
+     +--- adbctool
 ```
 
-For local development (editable install):
+## Architecture
+
+```text
+vehicle.dbc
+    |
+    v
+extract_dbc_meta
+    |
+    +--> dbc.yml
+            |
+            +--> gen_proto_file
+            |       +--> vehicle/<car_type>/proto/<car_type>.proto
+            |       +--> vehicle/<car_type>/proto/BUILD
+            |
+            +--> gen_protocols
+            |       +--> vehicle/<car_type>/protocol/*.h
+            |       +--> vehicle/<car_type>/protocol/*.cc
+            |       +--> vehicle/<car_type>/protocol/BUILD
+            |
+            +--> gen_vehicle_controller_and_manager
+                    +--> vehicle/<car_type>/*_controller.*
+                    +--> vehicle/<car_type>/*_message_manager.*
+                    +--> vehicle/<car_type>/*_vehicle_factory.*
+                    +--> vehicle/<car_type>/BUILD
+```
+
+The `adbctool` entry point in `pyproject.toml` invokes `adbctool.gen:main`.
+The generated output directory defaults to `output/`.
+
+## Installation
+
+The package requires Python `>=3.6` and declares the runtime dependencies
+`pyyaml` and `chardet`.
+
+For local development, install the repository in editable mode:
 
 ```shell
 python -m pip install -U pip setuptools
 python -m pip install -e .
 ```
 
-Note: parser runs in strict DBC mode by default. Non-standard comment lines such as
-`# ...` and `// ...` are treated as invalid syntax. Use standard DBC comment entries
-(`CM_ ...`) in source files.
+The package is also published as `adbctool`:
 
-## Example
-
-Generate c++ code based on dbc file.
-
-- `vehicle dbc file `: vehicle's dbc file
-- `vehicle type`: vehicle type
-- `sender`: the sender of the message, the control protocol template will be used for sender
-
-Generate code using a specific sender name
 ```shell
-# adbctool -f <vehicle.dbc> -t <vehicle_type> --sender <sender_name>
-adbctool -f test/acura_ilx_2016_nidec.dbc -t acura_ilx --sender ADAS
+pip3 install adbctool
 ```
 
-Or generate code using a list of sender IDs (in hexadecimal)
+## Examples
+
+Generate artifacts using the sender node name:
+
 ```shell
-# adbctool -f <vehicle.dbc> -t <vehicle_type> --sender_list <sender_id_hex>
-adbctool -f test/acura_ilx_2016_nidec.dbc -t acura_ilx --sender_list 0x400
+adbctool \
+  -f test/acura_ilx_2016_nidec.dbc \
+  -t acura_ilx \
+  --sender ADAS
 ```
+
+Alternatively, classify control messages by CAN message IDs. IDs are
+hexadecimal:
+
+```shell
+adbctool \
+  -f test/acura_ilx_2016_nidec.dbc \
+  -t acura_ilx \
+  --sender_list 0x400
+```
+
+The generated files are written below
+`output/vehicle/acura_ilx/` by default. The command also writes the
+intermediate `dbc.yml` in the current working directory.
+
+Run the repository tests with:
+
+```shell
+python -m unittest discover -s test
+```
+
+## Documentation
+
+- [Package configuration and CLI entry point](pyproject.toml)
+- [DBC metadata extraction](adbctool/extract_dbc_meta.py)
+- [Generation pipeline](adbctool/gen.py)
+- [Generated-file tests](test/test_generation_pipeline.py)
+- [CLI tests](test/test_gen_cli.py)
+- [DBC parser tests](test/test_extract_dbc_meta.py)
+- [Apache License 2.0](LICENSE)
+- [opendbc](https://github.com/commaai/opendbc)
+- [Open Vehicles documentation](https://docs.openvehicles.com/en/latest/index.html)
+- [WheelOS vehicle protocols](https://github.com/daohu527/vehicles)
